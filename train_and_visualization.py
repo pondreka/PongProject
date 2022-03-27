@@ -40,7 +40,7 @@ def training(data, model, loss_function, optimizer, gamma):
         model: model to train.
         loss_function: loss function used for the training and test the model.
         optimizer:  optimizer for the train step.
-        gamma:  # TODO.
+        gamma:  discount factor for reward
 
     Returns:
         average training loss
