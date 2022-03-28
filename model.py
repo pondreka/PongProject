@@ -34,14 +34,14 @@ class DQModel(tf.keras.Model):
             kernel_initializer=tf.keras.initializers.GlorotNormal(),
         )
 
-    def call(self, input):
+    def call(self, inputs):
         """Layer propagation
         Args:
-            input
+            inputs
         Return:
             propagation results
         """
-        x = self.conv1(input)
+        x = self.conv1(inputs)
         x = self.conv2(x)
         x = self.flatten(x)
         x = self.dense(x)
