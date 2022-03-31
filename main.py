@@ -12,14 +12,13 @@ def main():
     checkpoint_path = "checkpoints/cp.ckpt"
 
     # hyper-parameters
-    num_hidden_neurons = 200  # number of hidden layer neurons
-    batch_size = 8  # small batch to not overload the gpu
+    num_hidden_neurons = 256  # number of hidden layer neurons
+    batch_size = 32  # small batch to not overload the gpu
     gamma = 0.99  # discount factor for reward
-    learning_rate = 0.01
-    max_memory = 50000
-    sample_size = 2000
-    num_new_frames = 200
-    epochs = 20000
+    learning_rate = 0.00025
+    max_memory = 100000
+    episodes = 50000  # number of batches in an epoch
+    epochs = 100
 
     # model initialization
     dq_model = DQModel(num_hidden_neurons)
@@ -67,7 +66,7 @@ def main():
     state = env.reset()
 
     # initializing experience replay buffer
-    while len(memory) < sample_size:
+    while len(memory) < episodes:
 
         # convert to tensor and normalize
         # don't overwrite state
@@ -76,7 +75,7 @@ def main():
 
         # choose action
         # for data preparation episode = 0
-        action = choose_action(dq_model, prep_state, 0, epochs)
+        action = choose_action(dq_model, prep_state, 0)
 
         # step the environment and add to experience replay buffer
         next_state, reward, done, _ = env.step(action)
@@ -95,34 +94,17 @@ def main():
                 + ("" if reward == -1 else " !!!!!!!!")
             )
 
+    episode_count = 0
+
     # start training
     for epoch in range(epochs):
 
-        frame_count = 0
         reward_aggregator = []
+        loss_aggregator = []
 
-        # prepare the samples
-        memory_sample = prepare_data(
-            dataset.take(sample_size), sample_size, batch_size
-        )
+        for episode in range(episodes):
 
-        # train and track loss
-        average_loss = training(
-            memory_sample, dq_model, mse, adam_optimizer, gamma
-        )
-
-        # Save the weights using the `checkpoint_path` format
-        dq_model.save_weights(checkpoint_path.format(epoch=epoch))
-
-        epoch_losses.append(average_loss)
-
-        print(
-            "ep %d: episode loss total was %f. running mean: %f"
-            % (epoch, average_loss, tf.reduce_mean(epoch_losses))
-        )
-
-        # generating new samples
-        while frame_count < num_new_frames:
+            # generate a single sample
 
             # convert to tensor and normalize
             # don't overwrite state
@@ -130,7 +112,11 @@ def main():
             prep_state = prepare_state(state)
 
             # choose action
-            action = choose_action(dq_model, prep_state, epoch, epochs)
+            action = choose_action(dq_model, prep_state, episode_count)
+
+            # at 20000 samples
+            if episode_count < 1000000:
+                episode_count += 1
 
             # step the environment and add to experience replay buffer
             next_state, reward, done, _ = env.step(action)
@@ -143,18 +129,33 @@ def main():
 
             # next state is the state to make the next action from
             state = next_state
-            frame_count += 1
 
             if done:  # reset of environment
                 state = env.reset()  # reset env
 
-            if (
-                reward != 0
-            ):  # Pong has either +1 or -1 reward exactly when game ends.
+            # print when game terminated
+            if reward != 0:
+                # Pong has either +1 or -1 reward exactly when game ends.
                 print(
-                    "ep %d: game finished, reward: %f" % (epoch, reward)
+                    "episode %d: game finished, reward: %f" % (episode, reward)
                     + ("" if reward == -1 else " !!!!!!!!")
                 )
+
+            # train on a single batch
+
+            # prepare the samples
+            memory_sample = prepare_data(
+                dataset.take(batch_size), batch_size
+            )
+
+            # train and track loss
+            loss = training(
+                memory_sample, dq_model, mse, adam_optimizer, gamma
+            )
+            loss_aggregator.append(loss)
+
+            # Save the weights using the `checkpoint_path` format
+            dq_model.save_weights(checkpoint_path.format(epoch=epoch))
 
         # calculate average reward for the episode and print it
         # only if at least one game did end within the epoch
@@ -166,6 +167,15 @@ def main():
                 "ep %d: episode reward total was %f. running mean: %f"
                 % (epoch, average_reward, tf.reduce_mean(epoch_rewards))
             )
+
+        # calculate average loss for the episode and print it
+        average_loss = tf.reduce_mean(loss_aggregator)
+        epoch_losses.append(average_loss)
+
+        print(
+            "ep %d: episode loss total was %f. running mean: %f"
+            % (epoch, average_loss, tf.reduce_mean(epoch_losses))
+        )
 
     # plot average reward and loss per epoch
     visualize(epoch_losses, epoch_rewards)

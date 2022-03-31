@@ -30,7 +30,6 @@ class DQModel(tf.keras.Model):
 
         self.out = tf.keras.layers.Dense(
             num_actions,
-            activation="tanh",  # change to linear for other games
             kernel_initializer=tf.keras.initializers.GlorotNormal(),
         )
 
