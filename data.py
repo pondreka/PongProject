@@ -25,7 +25,7 @@ def prepare_data(dataset, batch_size):
     )
 
     ds = ds.cache()
-    ds = ds.shuffle(int(batch_size))
+    ds = ds.shuffle(int(batch_size * 2))
     ds = ds.batch(batch_size, drop_remainder=True)
     ds = ds.prefetch(int(batch_size * 2))
 

@@ -16,7 +16,7 @@ def main():
     batch_size = 32  # small batch to not overload the gpu
     gamma = 0.99  # discount factor for reward
     learning_rate = 0.00025
-    max_memory = 100000
+    max_memory = 1000000
     episodes = 50000  # number of batches in an epoch
     epochs = 100
 
@@ -113,10 +113,7 @@ def main():
 
             # choose action
             action = choose_action(dq_model, prep_state, episode_count)
-
-            # at 20000 samples
-            if episode_count < 1000000:
-                episode_count += 1
+            episode_count += 1
 
             # step the environment and add to experience replay buffer
             next_state, reward, done, _ = env.step(action)

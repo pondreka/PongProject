@@ -8,6 +8,8 @@ def choose_action(model, x, episode):
     if episode < 500000:
         # high temperature (low value) produces nearly probabilities of 0.5
         temperature = 1
+    elif episode > 1000000:
+        temperature = 10
     else:
         episode = tf.cast(episode, tf.float32)
         # getting lower temperature (higher values) for later episodes
